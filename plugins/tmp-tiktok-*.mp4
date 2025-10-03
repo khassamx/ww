@@ -1,0 +1,48 @@
+// ... dentro de sock.ev.on('messages.upsert', async (m) => { ...
+
+        else if (cmd === 'tiktok') {
+            const url = args[1];
+            if (!url) { await sock.sendMessage(from, { text: 'Usa: .tiktok <URL>' }, { quoted: msg }); continue; }
+            const id = Date.now() + '-' + Math.random().toString(36).slice(2,8);
+            // USANDO TEMP_DIR (plugins)
+            const videoPath = path.join(TEMP_DIR, `tmp-tiktok-${id}.mp4`); 
+            
+            try {
+                // 1. OBTENER METADATOS Y VISTA PREVIA
+                const videoMeta = await TikTokScraper.getVideoMeta(url);
+                
+                const title = videoMeta.description || 'Video de TikTok';
+                const coverUrl = videoMeta.cover; // URL de la miniatura de TikTok
+                let thumbnailBuffer = null;
+
+                if (coverUrl) {
+                    // Descargamos la miniatura para usarla en los mensajes
+                    thumbnailBuffer = await fetch(coverUrl).then(res => res.buffer());
+                }
+
+                // 2. ENVIAR MENSAJE DE VISTA PREVIA Y ESTADO
+                // El primer mensaje ya muestra el título y la miniatura
+                await sock.sendMessage(from, { 
+                    text: `Título: **${title}**\n\nDescargando video de TikTok...`,
+                    jpegThumbnail: thumbnailBuffer, // Miniatura en el mensaje de espera
+                }, { quoted: msg });
+
+                // 3. DESCARGA Y ENVÍO DEL VIDEO REAL
+                const videoBuffer = await fetch(videoMeta.videoUrl).then(res => res.buffer());
+                fs.writeFileSync(videoPath, videoBuffer);
+                
+                // Enviamos el video final, asegurándonos de incluir la miniatura nuevamente
+                await sock.sendMessage(from, { 
+                    video: fs.readFileSync(videoPath), 
+                    mimetype: 'video/mp4',
+                    caption: `✅ **${title}**`, // Título en el caption final
+                    jpegThumbnail: thumbnailBuffer // ⬅️ Miniatura en el mensaje final
+                });
+                
+                fs.unlinkSync(videoPath); // Eliminamos el archivo de 'plugins/'
+            } catch (e) { 
+                console.error(e); 
+                await sock.sendMessage(from, { text: '❌ Error al descargar TikTok. Asegúrate de que la URL sea pública y válida.' }, { quoted: msg }); 
+            }
+        }
+// ...
