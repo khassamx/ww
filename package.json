@@ -24,6 +24,5 @@
     "fs-extra": "^11.2.0",
     "node-fetch": "2.6.7",
     "tiktok-scraper": "^1.4.15"
-    /* Eliminada dependencia de Instagram para permitir la instalación */
   }
 }
