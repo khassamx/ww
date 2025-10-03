@@ -25,7 +25,6 @@ async function startQR() {
     const { connection, lastDisconnect } = upd;
     if(connection === 'close') {
       console.log('Conexión cerrada:', (lastDisconnect?.error)?.output?.statusCode || lastDisconnect?.error?.toString());
-      // Lógica de reconexión si es necesario (se reconecta automáticamente por defecto)
     } else if(connection === 'open') {
       console.log('Conectado a WhatsApp Web');
       startBotMain();
@@ -36,7 +35,7 @@ async function startQR() {
 async function startBotMain() {
   console.log('Iniciando el bot principal...');
   try {
-    // ⬇️ Importa la función startBot exportada del archivo principal
+    // Importa y llama a la función startBot exportada del archivo principal
     const bot = require('./whatsapp-bot'); 
     await bot.startBot(); 
 
