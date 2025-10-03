@@ -1,0 +1,37 @@
+// ... dentro del sock.ev.on('messages.upsert', async (msgUp) => { ...
+// ... después de que se comprueba el parentMsgId y se obtiene 'info' del mapa 'pending' ...
+
+                // Se extrae la información previamente guardada
+                const from = info.from;
+                const videoId = info.videoId;
+                const title = info.title;
+                const videoPath = info.videoPath; // <--- Ruta a 'plugins/tmp-yt-*.mp4'
+                const audioPath = info.audioPath;
+                const thumbnailBuffer = info.thumbnailBuffer; // <--- Buffer de la miniatura
+
+                pending.delete(parentMsgId); // Eliminamos la solicitud pendiente
+
+                if (selectedId.startsWith('send_video_')) {
+                    // Descargar y enviar video (tmp-yt-*.mp4)
+                    await sock.sendMessage(from, { text: `Descargando video: **${title}** (esto puede tardar...)` }, { quoted: msg });
+                    
+                    ytdl(`https://www.youtube.com/watch?v=${videoId}`, { filter: 'audioandvideo', quality: 'highest' })
+                        .pipe(fs.createWriteStream(videoPath)) // Guarda el archivo en 'plugins/tmp-yt-*.mp4'
+                        .on('finish', async () => {
+                            await sock.sendMessage(from, { 
+                                video: fs.readFileSync(videoPath), 
+                                mimetype: 'video/mp4', 
+                                caption: `✅ Video: **${title}**`,
+                                jpegThumbnail: thumbnailBuffer // ⬅️ ¡MINIATURA INCLUIDA AQUÍ!
+                            });
+                            fs.unlinkSync(videoPath); // Elimina el archivo de 'plugins/'
+                        })
+                        .on('error', (err) => {
+                            console.error('Error al descargar video:', err);
+                            sock.sendMessage(from, { text: '❌ Error al descargar el video.' });
+                        });
+
+                } else if (selectedId.startsWith('send_audio_')) {
+                    // ... Lógica para enviar audio (también actualizada) ...
+                }
+// ...
