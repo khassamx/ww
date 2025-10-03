@@ -1,0 +1,41 @@
+// ... dentro de sock.ev.on('messages.upsert', async (msgUp) => { ...
+// ... después de que se comprueba el parentMsgId y se obtiene 'info' del mapa 'pending' ...
+
+                // Se extrae la información previamente guardada
+                const from = info.from;
+                const videoId = info.videoId;
+                const title = info.title;
+                const videoPath = info.videoPath;
+                const audioPath = info.audioPath;
+                const thumbnailBuffer = info.thumbnailBuffer; // <--- Buffer de la miniatura
+
+                pending.delete(parentMsgId); // Eliminamos la solicitud pendiente
+
+                if (selectedId.startsWith('send_video_')) {
+                    // ... Lógica para enviar video (sin cambios) ...
+                } else if (selectedId.startsWith('send_audio_')) {
+                    // Descargar, convertir y enviar audio (tmp-yt-*.mp3)
+                    await sock.sendMessage(from, { text: `Descargando y convirtiendo audio: **${title}**` }, { quoted: msg });
+
+                    // Usa ytdl para descargar solo el audio
+                    const stream = ytdl(`https://www.youtube.com/watch?v=${videoId}`, { filter: 'audioonly', quality: 'highestaudio' });
+                    
+                    // Usa ffmpeg para procesar el stream y guardarlo en la ruta temporal
+                    ffmpeg(stream)
+                        .audioBitrate(128)
+                        .save(audioPath) // Guarda el archivo en 'plugins/tmp-yt-*.mp3'
+                        .on('end', async () => {
+                            await sock.sendMessage(from, { 
+                                audio: fs.readFileSync(audioPath), 
+                                mimetype: 'audio/mp4', // M4A es común para audio de YouTube y soporta metadatos/miniaturas
+                                caption: `✅ Audio: **${title}**`,
+                                jpegThumbnail: thumbnailBuffer // ⬅️ ¡MINIATURA INCLUIDA AQUÍ!
+                            });
+                            fs.unlinkSync(audioPath); // Elimina el archivo de 'plugins/'
+                        })
+                        .on('error', (err) => {
+                            console.error('Error al convertir audio:', err);
+                            sock.sendMessage(from, { text: '❌ Error al convertir el audio.' });
+                        });
+                }
+// ...
